@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -10,7 +11,10 @@ import (
 	"github.com/karrick/godirwalk"
 )
 
-func dirwalk(osDirname string) []string {
+var media_loaded int
+var media []string
+
+func loadMedia(osDirname string) ([]string, int) {
 
 	var entries []string
 
@@ -31,25 +35,40 @@ func dirwalk(osDirname string) []string {
 		entries[i], entries[j] = entries[j], entries[i]
 	})
 
-	return entries
+	return entries, len(entries)
 }
 
-var media []string
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
-func task() {
+func task(dir string) {
+	var fn string
 
-	var f string
+	if media_loaded == 0 || len(media) == 0 {
+		media, media_loaded = loadMedia(dir)
 
-	f, media = media[0], media[1:]
+		if media_loaded < 2 {
+			log.Fatal("Not enought media files.")
+		}
+	}
 
-	fmt.Println("F:", f)
+	log.Print("F: ", fn, ", media_loaded: ", media_loaded, ", media_current: ", len(media))
+	fn, media = media[0], media[1:]
+
 }
 
 func main() {
 
-	dir := "./media"
-	media = dirwalk(dir)
+	mediaDir := getEnv("MEDIA_DIR", "./media")
+	timezone := getEnv("TZ", "Asia/Sakhalin")
 
-	s1 = gocron.NewScheduler(time.FixedZone("Asia/Sakhalin"))
+	location, _ := time.LoadLocation(timezone)
+	s1 := gocron.NewScheduler(location)
 
+	s1.Every(3).Seconds().Do(task, mediaDir)
+	s1.StartBlocking()
 }
